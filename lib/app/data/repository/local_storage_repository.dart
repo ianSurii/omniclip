@@ -1,0 +1,7 @@
+class LocalStorageRepository {
+
+  LocalStorageRepository.internal();
+
+
+
+}

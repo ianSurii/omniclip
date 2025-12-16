@@ -1,0 +1,196 @@
+name: Flutter Multi-platform Build
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  version:
+    name: Create version number
+    runs-on: ubuntu-latest
+    outputs:
+      version-number: ${{ steps.gitversion.outputs.VERSION_NUMBER }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v0.9.15
+        with:
+          versionSpec: '5.x'
+      
+      - name: Determine Version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v0.9.15
+        with:
+          updateAssemblyInfo: true
+      
+      - name: Display version
+        run: |
+          echo "Version: ${{ steps.gitversion.outputs.semVer }}"
+          echo "VERSION_NUMBER=${{ steps.gitversion.outputs.semVer }}" >> $GITHUB_OUTPUT
+
+  build_web:
+    name: Build Flutter Web
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.4'
+          channel: 'stable'
+      
+      - name: Get dependencies
+        run: flutter pub get
+      
+      - name: Build Web
+        run: flutter build web --release
+      
+      - name: Upload Web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-release
+          path: build/web/
+
+  build_android:
+    name: Build Flutter Android
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.4'
+          channel: 'stable'
+      
+      - name: Get dependencies
+        run: flutter pub get
+      
+      - name: Verify keystore file
+        run: |
+          # Verify the keystore file exists in the repository root
+          ls -la worldcoffeeclub.keystore
+          file worldcoffeeclub.keystore
+      
+      - name: Create key.properties
+        run: |
+          # Create key.properties file using the keystore from repo root
+          echo "storePassword=worldcoffeeclub" > android/key.properties
+          echo "keyPassword=worldcoffeeclub" >> android/key.properties
+          echo "keyAlias=worldcoffeeclub" >> android/key.properties
+          echo "storeFile=../worldcoffeeclub.keystore" >> android/key.properties
+      
+      - name: Build APK
+        run: flutter build apk --release
+      
+      - name: Build App Bundle
+        run: flutter build appbundle --release
+      
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+      
+      - name: Upload App Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-bundle
+          path: build/app/outputs/bundle/release/app-release.aab
+
+  # iOS build job commented out - uncomment when ready to build iOS
+  # build_ios:
+  #   name: Build Flutter iOS
+  #   needs: version
+  #   runs-on: macos-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     
+  #     - name: Setup Flutter
+  #       uses: subosito/flutter-action@v2
+  #       with:
+  #         flutter-version: '3.16.x'
+  #         channel: 'stable'
+  #     
+  #     - name: Get dependencies
+  #       run: flutter pub get
+  #     
+  #     - name: Install Apple Certificate
+  #       if: ${{ secrets.IOS_CERTIFICATE_BASE64 != '' }}
+  #       uses: apple-actions/import-codesign-certs@v1
+  #       with:
+  #         p12-file-base64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+  #         p12-password: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+  #     
+  #     - name: Setup provisioning profile
+  #       if: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 != '' }}
+  #       run: |
+  #         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+  #         echo "${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+  #     
+  #     - name: Build iOS
+  #       run: |
+  #         flutter build ios --release --no-codesign
+  #         cd ios
+  #         xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -archivePath Runner.xcarchive archive
+  #         xcodebuild -exportArchive -archivePath Runner.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath ./build
+  #     
+  #     - name: Upload IPA
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: ios-release
+  #         path: ios/build/Runner.ipa
+  build_windows:
+    name: Build wibdows release
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+  build_linux:
+    name: Build wibdows release
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+  build_mac_os:
+    name: Build wibdows release
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+  release:
+    name: Create GitHub Release
+    needs: [version, build_android, build_web]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.version.outputs.version-number }}
+          name: Release v${{ needs.version.outputs.version-number }}
+          draft: false
+          prerelease: false
+          files: |
+            android-release-apk/app-release.apk
+            android-release-bundle/app-release.aab
+            web-release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
