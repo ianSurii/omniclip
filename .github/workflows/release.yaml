@@ -11,7 +11,7 @@ on:
   push:
     branches:
       - main
-      - release/test
+      - master
     tags:
       - 'v*.*.*'
   workflow_dispatch:
