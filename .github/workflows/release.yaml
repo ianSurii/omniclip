@@ -9,9 +9,9 @@ name: Flutter Release Build
 
 on:
   push:
-    branches:
-      - main
-      - master
+    # branches:
+    #   - main
+    #   - master
     tags:
       - 'v*.*.*'
   workflow_dispatch:
