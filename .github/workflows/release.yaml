@@ -91,23 +91,23 @@ jobs:
 
       - name: Rename APK
         run: |
-          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/centra-v${{ needs.version.outputs.version-number }}-android.apk
+          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/omniclip-v${{ needs.version.outputs.version-number }}-android.apk
 
       - name: Rename AAB
         run: |
-          mv build/app/outputs/bundle/release/app-release.aab build/app/outputs/bundle/release/centra-v${{ needs.version.outputs.version-number }}-android.aab
+          mv build/app/outputs/bundle/release/app-release.aab build/app/outputs/bundle/release/omniclip-v${{ needs.version.outputs.version-number }}-android.aab
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: build/app/outputs/flutter-apk/centra-v${{ needs.version.outputs.version-number }}-android.apk
+          path: build/app/outputs/flutter-apk/omniclip-v${{ needs.version.outputs.version-number }}-android.apk
 
       - name: Upload Android AAB
         uses: actions/upload-artifact@v4
         with:
           name: android-aab
-          path: build/app/outputs/bundle/release/centra-v${{ needs.version.outputs.version-number }}-android.aab
+          path: build/app/outputs/bundle/release/omniclip-v${{ needs.version.outputs.version-number }}-android.aab
 
   build-web:
     name: Build Web
@@ -132,14 +132,14 @@ jobs:
       - name: Archive web build
         run: |
           cd build/web
-          zip -r ../../centra-v${{ needs.version.outputs.version-number }}-web.zip .
+          zip -r ../../omniclip-v${{ needs.version.outputs.version-number }}-web.zip .
           cd ../..
 
       - name: Upload Web artifacts
         uses: actions/upload-artifact@v4
         with:
           name: web-build
-          path: centra-v${{ needs.version.outputs.version-number }}-web.zip
+          path: omniclip-v${{ needs.version.outputs.version-number }}-web.zip
 
   build-linux:
     name: Build Linux DEB
@@ -169,39 +169,45 @@ jobs:
       - name: Build Linux
         run: flutter build linux --release
 
+      - name: Copy logo for Linux icon
+        run: |
+          mkdir -p build/linux/x64/release/bundle/data/flutter_assets/assets/
+          cp assets/images/logo.png build/linux/x64/release/bundle/data/flutter_assets/assets/icon.png
+
       - name: Create DEB package structure
         run: |
           VERSION="${{ needs.version.outputs.version-number }}"
           BUILD_NUMBER="${{ needs.version.outputs.build-number }}"
-          PACKAGE_NAME="centra_${VERSION}-${BUILD_NUMBER}_amd64"
+          PACKAGE_NAME="omniclip_${VERSION}-${BUILD_NUMBER}_amd64"
           
           mkdir -p "$PACKAGE_NAME/DEBIAN"
-          mkdir -p "$PACKAGE_NAME/usr/local/bin/centra"
+          mkdir -p "$PACKAGE_NAME/usr/local/bin/omniclip"
           mkdir -p "$PACKAGE_NAME/usr/share/applications"
           mkdir -p "$PACKAGE_NAME/usr/share/icons/hicolor/256x256/apps"
           
           # Copy application files
-          cp -r build/linux/x64/release/bundle/* "$PACKAGE_NAME/usr/local/bin/centra/"
+          cp -r build/linux/x64/release/bundle/* "$PACKAGE_NAME/usr/local/bin/omniclip/"
           
           # Create control file
           cat > "$PACKAGE_NAME/DEBIAN/control" << EOF
-          Package: centra
+          Package: omniclip
           Version: ${VERSION}-${BUILD_NUMBER}
           Section: utils
           Priority: optional
           Architecture: amd64
           Maintainer: Erevu Technologies <support@erevu.com>
-          Description: Centra Application
+          Description: Omniclip Application
            A Flutter-based application for payroll and HR management.
           EOF
           
           # Create desktop entry
-          cat > "$PACKAGE_NAME/usr/share/applications/centra.desktop" << EOF
+          cat > "$PACKAGE_NAME/usr/share/applications/omniclip.desktop" << EOF
           [Desktop Entry]
-          Name=Centra
+          Name=Omniclip
           Comment=Payroll and HR Management
-          Exec=/usr/local/bin/centra/centra
-          Icon=centra
+          Exec=/usr/local/bin/omniclip/omniclip
+          # Place your icon at: build/linux/x64/release/bundle/data/flutter_assets/assets/icon.png
+          Icon=omniclip
           Terminal=false
           Type=Application
           Categories=Office;Finance;
@@ -214,7 +220,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-deb
-          path: centra_${{ needs.version.outputs.version-number }}-${{ needs.version.outputs.build-number }}_amd64.deb
+          path: omniclip_${{ needs.version.outputs.version-number }}-${{ needs.version.outputs.build-number }}_amd64.deb
 
   build-windows:
     name: Build Windows EXE
@@ -239,6 +245,12 @@ jobs:
       - name: Build Windows
         run: flutter build windows --release
 
+
+      - name: Convert logo.png to omniclip.ico
+        run: |
+          choco install imagemagick -y
+          magick convert assets/images/logo.png -resize 256x256 windows/runner/resources/omniclip.ico
+
       - name: Install Inno Setup
         run: |
           choco install innosetup -y
@@ -249,22 +261,24 @@ jobs:
           $buildNumber = "${{ needs.version.outputs.build-number }}"
           
           @"
-          #define MyAppName "Centra"
+          #define MyAppName "Omniclip"
           #define MyAppVersion "$version"
           #define MyAppPublisher "Erevu Technologies"
-          #define MyAppURL "https://github.com/Erevu-Technologies/centra"
-          #define MyAppExeName "centra.exe"
+          #define MyAppURL "https://github.com/IanSurii/omniclip"
+          #define MyAppExeName "omniclip.exe"
+          // Place your icon at: windows/runner/resources/omniclip.ico
+          // Reference it in your CMakeLists.txt and Windows manifest if needed.
           
           [Setup]
-          AppId={{CENTRA-APP-GUID}}
+          AppId={{OMNICLIP-APP-GUID}}
           AppName={#MyAppName}
           AppVersion={#MyAppVersion}
           AppPublisher={#MyAppPublisher}
           AppPublisherURL={#MyAppURL}
-          DefaultDirName={autopf}\Centra
-          DefaultGroupName=Centra
+          DefaultDirName={autopf}\Omniclip
+          DefaultGroupName=Omniclip
           OutputDir=.
-          OutputBaseFilename=centra-v$version-windows-setup
+          OutputBaseFilename=omniclip-v$version-windows-setup
           Compression=lzma
           SolidCompression=yes
           WizardStyle=modern
@@ -295,7 +309,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: centra-v${{ needs.version.outputs.version-number }}-windows-setup.exe
+          path: omniclip-v${{ needs.version.outputs.version-number }}-windows-setup.exe
 
   release:
     name: Create GitHub Release
@@ -303,7 +317,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -322,23 +336,23 @@ jobs:
           tag_name: v${{ needs.version.outputs.version-number }}
           name: Release v${{ needs.version.outputs.version-number }}
           body: |
-            ## Centra Release v${{ needs.version.outputs.version-number }}
+            ## Omniclip Release v${{ needs.version.outputs.version-number }}
             Build Number: ${{ needs.version.outputs.build-number }}
             
             ### 📦 Downloads
             
             **Android:**
-            - `centra-v${{ needs.version.outputs.version-number }}-android.apk` - Install on Android devices
-            - `centra-v${{ needs.version.outputs.version-number }}-android.aab` - For Google Play Store
+            - `omniclip-v${{ needs.version.outputs.version-number }}-android.apk` - Install on Android devices
+            - `omniclip-v${{ needs.version.outputs.version-number }}-android.aab` - For Google Play Store
             
             **Web:**
-            - `centra-v${{ needs.version.outputs.version-number }}-web.zip` - Extract and deploy to web server
+            - `omniclip-v${{ needs.version.outputs.version-number }}-web.zip` - Extract and deploy to web server
             
             **Linux:**
-            - `centra_${{ needs.version.outputs.version-number }}-${{ needs.version.outputs.build-number }}_amd64.deb` - Install with `sudo dpkg -i <file>`
+            - `omniclip_${{ needs.version.outputs.version-number }}-${{ needs.version.outputs.build-number }}_amd64.deb` - Install with `sudo dpkg -i <file>`
             
             **Windows:**
-            - `centra-v${{ needs.version.outputs.version-number }}-windows-setup.exe` - Run installer
+            - `omniclip-v${{ needs.version.outputs.version-number }}-windows-setup.exe` - Run installer
             
             ### 📝 Changelog
             - Add your release notes here
