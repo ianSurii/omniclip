@@ -184,9 +184,13 @@ jobs:
           mkdir -p "$PACKAGE_NAME/usr/local/bin/omniclip"
           mkdir -p "$PACKAGE_NAME/usr/share/applications"
           mkdir -p "$PACKAGE_NAME/usr/share/icons/hicolor/256x256/apps"
-          
+           # Copy icon
+          cp assets/images/logo.png "$PACKAGE_NAME/usr/share/icons/hicolor/256x256/apps/omniclip.png"
+  
           # Copy application files
           cp -r build/linux/x64/release/bundle/* "$PACKAGE_NAME/usr/local/bin/omniclip/"
+          
+         
           
           # Create control file
           cat > "$PACKAGE_NAME/DEBIAN/control" << EOF
@@ -206,12 +210,16 @@ jobs:
           Name=Omniclip
           Comment=Payroll and HR Management
           Exec=/usr/local/bin/omniclip/omniclip
-          # Place your icon at: build/linux/x64/release/bundle/data/flutter_assets/assets/icon.png
           Icon=omniclip
           Terminal=false
           Type=Application
           Categories=Office;Finance;
           EOF
+          
+
+          chmod 755 "$PACKAGE_NAME/DEBIAN/control"
+          chmod 644 "$PACKAGE_NAME/usr/share/applications/omniclip.desktop"
+          chmod 644 "$PACKAGE_NAME/usr/share/icons/hicolor/256x256/apps/omniclip.png"
           
           # Build DEB package
           dpkg-deb --build "$PACKAGE_NAME"
